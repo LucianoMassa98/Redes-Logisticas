@@ -12,8 +12,16 @@ import {
   ChevronRight,
   RotateCcw,
   AlertCircle,
+  Plus,
+  X,
+  UserPlus,
+  CheckCircle2,
+  MapPin,
+  Building2,
 } from 'lucide-react';
 import { leadService } from '../../services/lead.service.js';
+import { catalogService } from '../../services/catalog.service.js';
+import { userService } from '../../services/user.service.js';
 import { getApiErrorMessage } from '../../services/api.js';
 import { StatusBadge } from '../../components/common/StatusBadge.jsx';
 import { CustomerTypeBadge } from '../../components/common/CustomerTypeBadge.jsx';
@@ -21,6 +29,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner.jsx';
 import {
   LEAD_STATUS_CONFIG,
   CUSTOMER_TYPE_OPTIONS,
+  PREFERRED_CONTACT_OPTIONS,
   INITIAL_SERVICES,
 } from '../../config/constants.js';
 
@@ -45,6 +54,110 @@ export const LeadsListPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Modal de creación de nuevo lead
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [availableServices, setAvailableServices] = useState(INITIAL_SERVICES);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [newLeadError, setNewLeadError] = useState('');
+  const [successFeedback, setSuccessFeedback] = useState('');
+
+  const initialFormState = {
+    fullName: '',
+    phone: '',
+    email: '',
+    address: '',
+    locality: '',
+    province: 'Argentina',
+    customerType: 'HOGAR',
+    services: [],
+    status: 'NEW',
+    assignedUserId: '',
+    source: 'LLAMADA_DIRECTA',
+    locationReference: '',
+    description: '',
+    preferredContactMethod: 'WHATSAPP',
+    initialNote: '',
+  };
+  const [formData, setFormData] = useState(initialFormState);
+
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const [servicesRes, usersRes] = await Promise.all([
+          catalogService.getServices(),
+          userService.getUsers().catch(() => []),
+        ]);
+        if (servicesRes && servicesRes.length > 0) {
+          setAvailableServices(servicesRes);
+        }
+        if (usersRes && Array.isArray(usersRes)) {
+          setAvailableUsers(usersRes);
+        }
+      } catch (err) {
+        console.warn('Error al cargar metadatos de servicios/usuarios:', err);
+      }
+    };
+    loadMetadata();
+  }, []);
+
+  const handleOpenCreateModal = () => {
+    setFormData(initialFormState);
+    setNewLeadError('');
+    setIsCreateModalOpen(true);
+  };
+
+  const handleServiceToggle = (serviceIdentifier) => {
+    setFormData((prev) => {
+      const exists = prev.services.includes(serviceIdentifier);
+      return {
+        ...prev,
+        services: exists
+          ? prev.services.filter((s) => s !== serviceIdentifier)
+          : [...prev.services, serviceIdentifier],
+      };
+    });
+  };
+
+  const handleCreateLeadSubmit = async (e) => {
+    e.preventDefault();
+    if (formData.services.length === 0) {
+      setNewLeadError('Debe seleccionar al menos un servicio de interés.');
+      return;
+    }
+    setIsSubmittingLead(true);
+    setNewLeadError('');
+    try {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || undefined,
+        address: formData.address.trim(),
+        locality: formData.locality.trim(),
+        province: formData.province.trim() || 'Argentina',
+        customerType: formData.customerType,
+        services: formData.services,
+        status: formData.status || 'NEW',
+        assignedUserId: formData.assignedUserId || undefined,
+        source: formData.source || 'LLAMADA_DIRECTA',
+        locationReference: formData.locationReference.trim() || undefined,
+        description: formData.description.trim() || undefined,
+        preferredContactMethod: formData.preferredContactMethod || 'WHATSAPP',
+        initialNote: formData.initialNote.trim() || undefined,
+      };
+
+      await leadService.createAdminLead(payload);
+      setSuccessFeedback(`Lead "${payload.fullName}" registrado exitosamente.`);
+      setIsCreateModalOpen(false);
+      fetchLeads();
+      setTimeout(() => setSuccessFeedback(''), 5000);
+    } catch (err) {
+      setNewLeadError(getApiErrorMessage(err, 'No se pudo crear el lead.'));
+    } finally {
+      setIsSubmittingLead(false);
+    }
+  };
 
   const fetchLeads = useCallback(async () => {
     setIsLoading(true);
@@ -123,15 +236,41 @@ export const LeadsListPage = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={isExporting || data.total === 0}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-sm transition-all disabled:opacity-50"
-        >
-          {isExporting ? <LoadingSpinner size="sm" /> : <Download className="w-4 h-4 text-brand-600" />}
-          <span>Exportar CSV</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuevo Lead</span>
+          </button>
+
+          <button
+            onClick={handleExport}
+            disabled={isExporting || data.total === 0}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 shadow-sm transition-all disabled:opacity-50"
+          >
+            {isExporting ? <LoadingSpinner size="sm" /> : <Download className="w-4 h-4 text-brand-600" />}
+            <span>Exportar CSV</span>
+          </button>
+        </div>
       </div>
+
+      {/* Success Notification Banner */}
+      {successFeedback && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-center justify-between animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="font-semibold">{successFeedback}</span>
+          </div>
+          <button
+            onClick={() => setSuccessFeedback('')}
+            className="text-emerald-600 hover:text-emerald-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filter Bar Card */}
       <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
@@ -479,6 +618,326 @@ export const LeadsListPage = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL: Registrar Nuevo Lead Comercial */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shadow-sm">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
+                    Registrar Nuevo Lead Comercial
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Carga manual de consultas telefónicas, visitas a local o recomendaciones.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {newLeadError && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{newLeadError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateLeadSubmit} className="space-y-5 text-xs">
+              {/* Sección 1: Información de Contacto */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-500">
+                  <span>1. Datos del Cliente</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Nombre y Apellido *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Roberto Gómez"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Teléfono / WhatsApp *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="Ej. 11 5544-3322 o +54 9 351..."
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Correo Electrónico (Opcional)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="cliente@ejemplo.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Tipo de Cliente *
+                    </label>
+                    <select
+                      value={formData.customerType}
+                      onChange={(e) => setFormData({ ...formData, customerType: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium text-slate-800"
+                    >
+                      {CUSTOMER_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Contacto Preferido
+                    </label>
+                    <select
+                      value={formData.preferredContactMethod}
+                      onChange={(e) =>
+                        setFormData({ ...formData, preferredContactMethod: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium text-slate-800"
+                    >
+                      {PREFERRED_CONTACT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección 2: Ubicación */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-500">
+                  <span>2. Ubicación del Servicio</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Localidad / Ciudad *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Villa Carlos Paz, Pilar, etc."
+                      value={formData.locality}
+                      onChange={(e) => setFormData({ ...formData, locality: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Dirección / Calle y Altura *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Av. San Martín 1420 o Ruta 20 Km 12"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Referencia o Punto de Interés (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Frente a la estación de servicio, portón negro con reflector"
+                    value={formData.locationReference}
+                    onChange={(e) =>
+                      setFormData({ ...formData, locationReference: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Sección 3: Servicios de Interés */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">
+                    3. Servicios de Interés * (Selecciona al menos uno)
+                  </h4>
+                  <span className="text-[11px] text-slate-400 font-semibold">
+                    {formData.services.length} seleccionado(s)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {availableServices.map((svc) => {
+                    const identifier = svc.id || svc.code;
+                    const isChecked =
+                      formData.services.includes(svc.id) || formData.services.includes(svc.code);
+
+                    return (
+                      <button
+                        type="button"
+                        key={identifier}
+                        onClick={() => handleServiceToggle(identifier)}
+                        className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                          isChecked
+                            ? 'bg-brand-50/70 border-brand-500 text-brand-900 shadow-xs'
+                            : 'bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="font-bold text-xs truncate">{svc.name}</span>
+                        <div
+                          className={`w-4 h-4 rounded-md border flex items-center justify-center ${
+                            isChecked
+                              ? 'bg-brand-600 border-brand-600 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sección 4: Gestión Comercial */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">
+                  4. Gestión Comercial
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Estado Inicial
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white font-medium"
+                    >
+                      {Object.keys(LEAD_STATUS_CONFIG).map((k) => (
+                        <option key={k} value={k}>
+                          {LEAD_STATUS_CONFIG[k].label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Asignar a Asesor
+                    </label>
+                    <select
+                      value={formData.assignedUserId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, assignedUserId: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white font-medium"
+                    >
+                      <option value="">-- Sin asignar --</option>
+                      {availableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Canal de Origen
+                    </label>
+                    <select
+                      value={formData.source}
+                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white font-medium"
+                    >
+                      <option value="LLAMADA_DIRECTA">Llamada Telefónica</option>
+                      <option value="WHATSAPP_DIRECT">WhatsApp Directo</option>
+                      <option value="VISITA_LOCAL">Visita a Local / Oficina</option>
+                      <option value="RECOMENDACION">Recomendación</option>
+                      <option value="MANUAL_ADMIN">Carga Manual General</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Nota Interna Inicial (Opcional)
+                  </label>
+                  <textarea
+                    rows="2"
+                    placeholder="Detalles de la consulta, requerimientos específicos del cliente..."
+                    value={formData.initialNote}
+                    onChange={(e) => setFormData({ ...formData, initialNote: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingLead}
+                  className="px-5 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmittingLead ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span>Registrando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Registrar Lead</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,6 +13,12 @@ export const leadService = {
     return response.data.data;
   },
 
+  // Panel administrativo - Creación manual de lead
+  async createAdminLead(data) {
+    const response = await api.post('/admin/leads', data);
+    return response.data.data;
+  },
+
   // Detalle de un lead
   async getLeadById(id) {
     const response = await api.get(`/admin/leads/${id}`);
