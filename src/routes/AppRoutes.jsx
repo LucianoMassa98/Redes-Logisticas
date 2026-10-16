@@ -7,6 +7,8 @@ import { DashboardPage } from '../pages/admin/DashboardPage.jsx';
 import { LeadsListPage } from '../pages/admin/LeadsListPage.jsx';
 import { LeadDetailPage } from '../pages/admin/LeadDetailPage.jsx';
 import { UsersPage } from '../pages/admin/UsersPage.jsx';
+import { InventoryPage } from '../pages/admin/InventoryPage.jsx';
+import { PriceCalculatorPage } from '../pages/admin/PriceCalculatorPage.jsx';
 import { AdminLayout } from '../components/admin/AdminLayout.jsx';
 import { LoadingSpinner } from '../components/common/LoadingSpinner.jsx';
 
@@ -67,6 +69,8 @@ export const AppRoutes = () => {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="leads" element={<LeadsListPage />} />
         <Route path="leads/:id" element={<LeadDetailPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="calculator" element={<PriceCalculatorPage />} />
         <Route
           path="users"
           element={

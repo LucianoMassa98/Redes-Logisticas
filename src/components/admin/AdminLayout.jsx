@@ -4,6 +4,8 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
+  Package,
+  Calculator,
   LogOut,
   Menu,
   X,
@@ -23,6 +25,8 @@ export const AdminLayout = () => {
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Gestión de Leads', path: '/admin/leads', icon: Users },
+    { label: 'Inventario & Costos', path: '/admin/inventory', icon: Package },
+    { label: 'Calculador de Precios', path: '/admin/calculator', icon: Calculator },
   ];
 
   if (isAdmin) {
