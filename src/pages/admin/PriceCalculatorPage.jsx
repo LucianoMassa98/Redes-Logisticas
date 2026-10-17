@@ -21,6 +21,7 @@ import {
   Settings,
   BookmarkPlus,
   Calendar,
+  User,
   X,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventory.service.js';
@@ -44,6 +45,7 @@ export const PriceCalculatorPage = () => {
   // Materiales seleccionados para la instalación: array de { id, quantity, name, unitCost, unit, code }
   const [selectedItems, setSelectedItems] = useState([]);
   const [laborCost, setLaborCost] = useState(35000); // Costo base mano de obra inicial sugerido
+  const [clientName, setClientName] = useState('');
 
   const [calculationResult, setCalculationResult] = useState(null);
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
@@ -64,14 +66,16 @@ export const PriceCalculatorPage = () => {
 
   const applyDbPreset = (preset) => {
     if (!preset || !preset.items) return;
-    const formattedItems = preset.items.map((it) => ({
-      id: it.id,
-      code: it.code,
-      name: it.name,
-      costPrice: it.costPrice,
-      unit: it.unit,
-      quantity: Number(it.quantity) || 1,
-    }));
+    const formattedItems = preset.items
+      .filter((it) => it && it.id)
+      .map((it) => ({
+        id: it.id,
+        code: it.code,
+        name: it.name,
+        costPrice: it.costPrice,
+        unit: it.unit || 'UNIDAD',
+        quantity: Number(it.quantity) || 1,
+      }));
     setSelectedItems(formattedItems);
     setLaborCost(Number(preset.laborCost) || 0);
     if (preset.markupPercent !== null && preset.markupPercent !== undefined) {
@@ -123,7 +127,7 @@ export const PriceCalculatorPage = () => {
 
   // 2. Ejecutar cálculo cada vez que cambien los materiales, mano de obra o margen
   useEffect(() => {
-    if (selectedItems.length === 0 && laborCost === 0) {
+    if (selectedItems.length === 0 && Number(laborCost) === 0) {
       setCalculationResult(null);
       return;
     }
@@ -131,11 +135,15 @@ export const PriceCalculatorPage = () => {
     const runCalculation = async () => {
       setIsCalculating(true);
       try {
-        const payload = {
-          items: selectedItems.map((item) => ({
+        const validItems = selectedItems
+          .filter((item) => item && item.id)
+          .map((item) => ({
             id: item.id,
             quantity: Number(item.quantity) || 1,
-          })),
+          }));
+
+        const payload = {
+          items: validItems,
           laborCost: Number(laborCost) || 0,
           customMarkupPercent: useCustomMarkup ? Number(customMarkup) : null,
         };
@@ -143,7 +151,6 @@ export const PriceCalculatorPage = () => {
         const res = await inventoryService.calculateQuotePrice(payload);
         setCalculationResult(res.data);
       } catch (err) {
-        // En caso de que no haya items de base de datos
         console.warn('Error en cálculo en backend:', err);
       } finally {
         setIsCalculating(false);
@@ -246,7 +253,7 @@ export const PriceCalculatorPage = () => {
       .map((it) => `• ${it.quantity}x ${it.name} (${it.unit})`)
       .join('\n');
 
-    const text = `🛠️ *PRESUPUESTO TÉCNICO DE INSTALACIÓN*
+    const text = `🛠️ *PRESUPUESTO TÉCNICO DE INSTALACIÓN*${clientName.trim() ? `\n👤 *Cliente / Proyecto:* ${clientName.trim()}` : ''}
 *${COMPANY_CONFIG.name}*
 ${COMPANY_CONFIG.tagline}
 
@@ -367,6 +374,30 @@ _Presupuesto válido por 15 días. Factura y garantía oficial._
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Input Builder (7 cols) */}
         <div className="lg:col-span-7 space-y-5">
+          {/* Card: Cliente o Proyecto de Referencia */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs text-slate-800">
+                  Cliente o Proyecto (Opcional)
+                </h4>
+                <p className="text-[10px] text-slate-400">
+                  Personaliza el presupuesto para WhatsApp y la agenda
+                </p>
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="Ej: Juan Pérez / Finca Los Álamos"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="w-full sm:w-64 px-3 py-1.5 rounded-xl text-xs bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 font-medium text-slate-800"
+            />
+          </div>
+
           {/* Card: Selector de Materiales del Inventario */}
           <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
