@@ -311,8 +311,8 @@ export const InventoryPage = () => {
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Artículos</p>
-              <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalItems}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">{metrics.totalUnits} unidades en stock</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{metrics.totalItems || 0}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{metrics.totalUnits ?? 0} unidades en stock</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <Package className="w-5 h-5" />
@@ -322,7 +322,7 @@ export const InventoryPage = () => {
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stock Crítico</p>
-              <p className="text-2xl font-black text-amber-600 mt-1">{metrics.lowStockItems}</p>
+              <p className="text-2xl font-black text-amber-600 mt-1">{metrics.lowStockItems || 0}</p>
               <p className="text-[11px] text-amber-600 font-medium mt-0.5">Requieren reposición</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -333,7 +333,9 @@ export const InventoryPage = () => {
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Valor al Costo</p>
-              <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(metrics.totalCostValue)}</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">
+                {formatCurrency(metrics.totalCostValue ?? metrics.totalInventoryCostValue)}
+              </p>
               <p className="text-[11px] text-slate-400 mt-0.5">Capital invertido en stock</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -509,8 +511,16 @@ export const InventoryPage = () => {
                       </td>
 
                       {/* Costo */}
-                      <td className="py-3.5 px-4 text-right font-semibold text-slate-700">
-                        {formatCurrency(item.costPrice)}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="font-semibold text-slate-800">
+                          {formatCurrency(item.costPrice)}
+                        </div>
+                        <div
+                          className="text-[10px] text-slate-400 mt-0.5"
+                          title="Capital invertido en este artículo (Costo x Stock)"
+                        >
+                          Total: {formatCurrency(Number(item.costPrice || 0) * Number(item.stockQuantity || 0))}
+                        </div>
                       </td>
 
                       {/* Margen */}
@@ -566,6 +576,27 @@ export const InventoryPage = () => {
                   );
                 })}
               </tbody>
+              <tfoot className="bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-700">
+                <tr>
+                  <td colSpan="3" className="py-3 px-4 text-slate-500 uppercase tracking-wider text-[11px]">
+                    Totales (en pantalla)
+                  </td>
+                  <td className="py-3 px-4 text-center text-slate-900">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-xs">
+                      {items.reduce((acc, curr) => acc + Number(curr.stockQuantity || 0), 0)} unidades
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right text-slate-900">
+                    <span className="text-[10px] text-slate-400 block font-normal">Valor al Costo:</span>
+                    <span className="text-emerald-700 font-black">
+                      {formatCurrency(items.reduce((acc, curr) => acc + (Number(curr.costPrice || 0) * Number(curr.stockQuantity || 0)), 0))}
+                    </span>
+                  </td>
+                  <td colSpan="3" className="py-3 px-4 text-right text-[11px] text-slate-400 font-normal">
+                    {items.length} artículos listados
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
