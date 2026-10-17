@@ -64,4 +64,14 @@ export const inventoryService = {
     const response = await api.get('/admin/inventory/config');
     return response.data;
   },
+
+  /**
+   * Elimina un artículo del inventario
+   * @param {string} id
+   */
+  async deleteItem(id) {
+    const response = await api.delete(`/admin/inventory/${id}`);
+    return response.data;
+  },
 };
+

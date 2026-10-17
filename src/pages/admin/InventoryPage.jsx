@@ -18,6 +18,7 @@ import {
   X,
   AlertCircle,
   Boxes,
+  Trash2,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventory.service.js';
 import { getApiErrorMessage } from '../../services/api.js';
@@ -46,6 +47,10 @@ export const InventoryPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Modal para eliminar producto
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados de formulario de creación / edición
   const [formData, setFormData] = useState({
@@ -222,6 +227,29 @@ export const InventoryPage = () => {
       alert(getApiErrorMessage(err, 'Error al ajustar el stock.'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenDelete = (item) => {
+    setDeleteTarget(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await inventoryService.deleteItem(deleteTarget.id);
+      setSuccessMessage(`Artículo "${deleteTarget.name}" (${deleteTarget.code}) eliminado del inventario.`);
+      setDeleteTarget(null);
+      if (isEditModalOpen && selectedItem?.id === deleteTarget.id) {
+        setIsEditModalOpen(false);
+      }
+      fetchInventory();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'No se pudo eliminar el artículo.'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -525,6 +553,13 @@ export const InventoryPage = () => {
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => handleOpenDelete(item)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Eliminar Artículo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -812,21 +847,33 @@ export const InventoryPage = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  onClick={() => {
+                    handleOpenDelete(selectedItem);
+                  }}
+                  className="px-3 py-2 rounded-xl font-bold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5 text-xs"
                 >
-                  Cancelar
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar Artículo</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 transition-all disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 transition-all disabled:opacity-50 text-xs"
+                  >
+                    {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -947,6 +994,89 @@ export const InventoryPage = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL: Confirmar Eliminación de Artículo */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Eliminar del Inventario</h3>
+                  <p className="text-[11px] text-slate-400">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+                disabled={isDeleting}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Artículo:</span>
+                <strong className="text-slate-900 font-bold">{deleteTarget.name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Código / SKU:</span>
+                <span className="font-mono font-bold text-slate-800">{deleteTarget.code}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Categoría:</span>
+                <span className="font-semibold text-slate-700">{deleteTarget.category}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Stock Actual:</span>
+                <span className="font-bold text-slate-800">{deleteTarget.stockQuantity} {deleteTarget.unit}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Precio Costo:</span>
+                <span className="font-bold text-slate-800">{formatCurrency(deleteTarget.costPrice)}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente este producto del inventario? Ya no estará disponible para presupuestar ni en el stock general.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/20 transition-all text-xs flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <LoadingSpinner size="sm" className="text-white" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Eliminar Producto</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
