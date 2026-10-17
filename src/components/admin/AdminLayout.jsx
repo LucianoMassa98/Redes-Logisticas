@@ -6,6 +6,7 @@ import {
   UserCheck,
   Package,
   Calculator,
+  Layers,
   LogOut,
   Menu,
   X,
@@ -27,6 +28,7 @@ export const AdminLayout = () => {
     { label: 'Gestión de Leads', path: '/admin/leads', icon: Users },
     { label: 'Inventario & Costos', path: '/admin/inventory', icon: Package },
     { label: 'Calculador de Precios', path: '/admin/calculator', icon: Calculator },
+    { label: 'Plantillas Rápidas', path: '/admin/presets', icon: Layers },
   ];
 
   if (isAdmin) {

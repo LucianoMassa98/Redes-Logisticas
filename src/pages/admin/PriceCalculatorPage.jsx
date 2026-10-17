@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Calculator,
   Package,
@@ -18,8 +18,12 @@ import {
   Info,
   Wrench,
   ChevronDown,
+  Settings,
+  BookmarkPlus,
+  X,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventory.service.js';
+import { presetService } from '../../services/preset.service.js';
 import { getApiErrorMessage } from '../../services/api.js';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner.jsx';
 import { COMPANY_CONFIG } from '../../config/constants.js';
@@ -29,7 +33,9 @@ const formatCurrency = (val) => {
 };
 
 export const PriceCalculatorPage = () => {
+  const location = useLocation();
   const [inventoryList, setInventoryList] = useState([]);
+  const [dbPresets, setDbPresets] = useState([]);
   const [defaultEnvMarkup, setDefaultEnvMarkup] = useState(100);
   const [customMarkup, setCustomMarkup] = useState(100);
   const [useCustomMarkup, setUseCustomMarkup] = useState(false);
@@ -44,37 +50,65 @@ export const PriceCalculatorPage = () => {
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [selectedItemToAdd, setSelectedItemToAdd] = useState('');
 
-  // 1. Cargar inventario y configuración del sistema (.env)
+  // Modal para guardar como nueva plantilla
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [savePresetForm, setSavePresetForm] = useState({
+    name: '',
+    code: '',
+    category: 'CÁMARAS',
+    description: '',
+  });
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [saveSuccessFeedback, setSaveSuccessFeedback] = useState('');
+
+  const applyDbPreset = (preset) => {
+    if (!preset || !preset.items) return;
+    const formattedItems = preset.items.map((it) => ({
+      id: it.id,
+      code: it.code,
+      name: it.name,
+      costPrice: it.costPrice,
+      unit: it.unit,
+      quantity: Number(it.quantity) || 1,
+    }));
+    setSelectedItems(formattedItems);
+    setLaborCost(Number(preset.laborCost) || 0);
+    if (preset.markupPercent !== null && preset.markupPercent !== undefined) {
+      setCustomMarkup(Number(preset.markupPercent));
+      setUseCustomMarkup(true);
+    } else {
+      setUseCustomMarkup(false);
+      setCustomMarkup(defaultEnvMarkup);
+    }
+  };
+
+  // 1. Cargar inventario, plantillas de la BD y configuración del sistema (.env)
   useEffect(() => {
     const initData = async () => {
       setIsLoadingInventory(true);
       try {
-        const [configRes, invRes] = await Promise.all([
+        const [configRes, invRes, presetsData] = await Promise.all([
           inventoryService.getSystemConfig(),
           inventoryService.getInventory({ limit: 100 }),
+          presetService.getPresets().catch(() => []),
         ]);
 
         const markup = configRes.data?.installationMarkupPercent || 100;
         setDefaultEnvMarkup(markup);
         setCustomMarkup(markup);
 
-        setInventoryList(invRes.data?.items || []);
-
-        // Precargar con materiales modelo sugeridos (ej. 2 cámaras + UTP + conectores)
         const items = invRes.data?.items || [];
-        const initialPicks = [];
+        setInventoryList(items);
 
-        const cam = items.find((i) => i.code.includes('CAM') || i.code.includes('CCTV'));
-        if (cam) initialPicks.push({ ...cam, quantity: 2 });
+        const presets = presetsData || [];
+        setDbPresets(presets);
 
-        const utp = items.find((i) => i.code.includes('UTP') || i.code.includes('CABLE'));
-        if (utp) initialPicks.push({ ...utp, quantity: 40 });
-
-        const balun = items.find((i) => i.code.includes('BALUN') || i.code.includes('RJ45'));
-        if (balun) initialPicks.push({ ...balun, quantity: 2 });
-
-        if (initialPicks.length > 0) {
-          setSelectedItems(initialPicks);
+        // Si se envió una plantilla específica por navegación desde /admin/presets
+        if (location.state?.presetToLoad) {
+          applyDbPreset(location.state.presetToLoad);
+        } else if (presets.length > 0) {
+          // Aplicar la primera plantilla guardada en la base de datos
+          applyDbPreset(presets[0]);
         }
       } catch (err) {
         console.error('Error al inicializar calculador:', err);
@@ -154,45 +188,51 @@ export const PriceCalculatorPage = () => {
     setCustomMarkup(defaultEnvMarkup);
   };
 
-  // Presets rápidos para cotizaciones comunes
-  const applyPreset = (presetName) => {
-    if (presetName === 'cctv2') {
-      const cam = inventoryList.find((i) => i.code.includes('CCTV') || i.code.includes('CAM-IP'));
-      const dvr = inventoryList.find((i) => i.code.includes('DVR'));
-      const hdd = inventoryList.find((i) => i.code.includes('HDD'));
-      const utp = inventoryList.find((i) => i.code.includes('UTP'));
-      const balun = inventoryList.find((i) => i.code.includes('BALUN'));
+  const handleOpenSaveModal = () => {
+    if (selectedItems.length === 0) return;
+    const autoCode = `KIT_${Date.now().toString().slice(-6)}`;
+    setSavePresetForm({
+      name: `Instalación Personalizada (${selectedItems.length} materiales)`,
+      code: autoCode,
+      category: 'GENERAL',
+      description: 'Plantilla guardada desde el calculador de precios.',
+    });
+    setIsSaveModalOpen(true);
+  };
 
-      const picks = [];
-      if (cam) picks.push({ ...cam, quantity: 2 });
-      if (dvr) picks.push({ ...dvr, quantity: 1 });
-      if (hdd) picks.push({ ...hdd, quantity: 1 });
-      if (utp) picks.push({ ...utp, quantity: 50 });
-      if (balun) picks.push({ ...balun, quantity: 2 });
+  const handleSavePresetSubmit = async (e) => {
+    e.preventDefault();
+    if (!savePresetForm.name.trim() || !savePresetForm.code.trim()) {
+      alert('Nombre y código son obligatorios.');
+      return;
+    }
+    setIsSavingPreset(true);
+    try {
+      const payload = {
+        name: savePresetForm.name.trim(),
+        code: savePresetForm.code.trim().toUpperCase(),
+        category: savePresetForm.category,
+        laborCost: Number(laborCost) || 0,
+        markupPercent: useCustomMarkup ? Number(customMarkup) : null,
+        description: savePresetForm.description.trim() || null,
+        items: selectedItems.map((it) => ({
+          id: it.id,
+          code: it.code,
+          quantity: Number(it.quantity) || 1,
+        })),
+        isActive: true,
+      };
 
-      setSelectedItems(picks);
-      setLaborCost(45000);
-    } else if (presetName === 'starlink') {
-      const mount = inventoryList.find((i) => i.code.includes('STARLINK') || i.code.includes('SOPORTE'));
-      const utp = inventoryList.find((i) => i.code.includes('UTP'));
-      const rj45 = inventoryList.find((i) => i.code.includes('RJ45'));
-      const ap = inventoryList.find((i) => i.code.includes('WIFI') || i.code.includes('ROUTER'));
-
-      const picks = [];
-      if (mount) picks.push({ ...mount, quantity: 1 });
-      if (utp) picks.push({ ...utp, quantity: 30 });
-      if (rj45) picks.push({ ...rj45, quantity: 4 });
-      if (ap) picks.push({ ...ap, quantity: 1 });
-
-      setSelectedItems(picks);
-      setLaborCost(40000);
-    } else if (presetName === 'solar') {
-      const camSolar = inventoryList.find((i) => i.code.includes('SOLAR'));
-      const picks = [];
-      if (camSolar) picks.push({ ...camSolar, quantity: 1 });
-
-      setSelectedItems(picks);
-      setLaborCost(28000);
+      await presetService.createPreset(payload);
+      const updatedPresets = await presetService.getPresets();
+      setDbPresets(updatedPresets || []);
+      setSaveSuccessFeedback(`Plantilla "${payload.name}" guardada con éxito en la base de datos.`);
+      setIsSaveModalOpen(false);
+      setTimeout(() => setSaveSuccessFeedback(''), 5000);
+    } catch (err) {
+      alert(getApiErrorMessage(err, 'No se pudo guardar la plantilla.'));
+    } finally {
+      setIsSavingPreset(false);
     }
   };
 
@@ -268,33 +308,60 @@ _Presupuesto válido por 15 días. Factura y garantía oficial._
         </div>
       </div>
 
-      {/* Preset Buttons */}
+      {/* Preset Buttons cargados dinámicamente desde PostgreSQL */}
       <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between flex-wrap gap-2 text-xs">
-        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-          <Layers className="w-4 h-4 text-brand-600" />
-          Plantillas Rápidas:
-        </span>
         <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-slate-700 flex items-center gap-1.5 mr-1">
+            <Layers className="w-4 h-4 text-brand-600" />
+            Plantillas Rápidas:
+          </span>
+          {dbPresets.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => applyDbPreset(preset)}
+              className="px-3 py-1.5 rounded-xl font-semibold bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-700 border border-slate-200 transition-all cursor-pointer flex items-center gap-1.5"
+              title={`Cargar ${preset.name} (${preset.items?.length || 0} materiales)`}
+            >
+              <span>{preset.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => applyPreset('cctv2')}
-            className="px-3 py-1.5 rounded-xl font-semibold bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-700 border border-slate-200 transition-all"
+            type="button"
+            onClick={handleOpenSaveModal}
+            disabled={selectedItems.length === 0}
+            className="px-3 py-1.5 rounded-xl font-bold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-all flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
+            title="Guardar los materiales y labor actuales como una plantilla rápida en la base de datos"
           >
-            📹 Kit CCTV 2 Cámaras + Disco
+            <BookmarkPlus className="w-3.5 h-3.5" />
+            <span>Guardar como Plantilla</span>
           </button>
-          <button
-            onClick={() => applyPreset('starlink')}
-            className="px-3 py-1.5 rounded-xl font-semibold bg-slate-100 hover:bg-cyan-50 hover:text-cyan-800 text-slate-700 border border-slate-200 transition-all"
+
+          <Link
+            to="/admin/presets"
+            className="px-3 py-1.5 rounded-xl font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-1.5"
+            title="Administrar todas las plantillas"
           >
-            🛰️ Montaje e Instalación Starlink
-          </button>
-          <button
-            onClick={() => applyPreset('solar')}
-            className="px-3 py-1.5 rounded-xl font-semibold bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-700 border border-slate-200 transition-all"
-          >
-            ☀️ Cámara Solar Rural 4G
-          </button>
+            <Settings className="w-3.5 h-3.5 text-slate-500" />
+            <span>Gestionar Plantillas</span>
+          </Link>
         </div>
       </div>
+
+      {saveSuccessFeedback && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span className="font-semibold">{saveSuccessFeedback}</span>
+          </div>
+          <button onClick={() => setSaveSuccessFeedback('')} className="text-emerald-600 hover:text-emerald-800">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Input Builder (7 cols) */}
@@ -669,6 +736,126 @@ _Presupuesto válido por 15 días. Factura y garantía oficial._
           </div>
         </div>
       </div>
+
+      {/* MODAL: Guardar como Plantilla Rápida */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <BookmarkPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">
+                    Guardar como Plantilla Rápida
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Se guardarán los {selectedItems.length} materiales y la mano de obra actual (${Number(laborCost).toLocaleString()}).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePresetSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Nombre de la Plantilla *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Kit 4 Cámaras DVR + Instalación"
+                  value={savePresetForm.name}
+                  onChange={(e) =>
+                    setSavePresetForm({ ...savePresetForm, name: e.target.value })
+                  }
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Código / Identificador *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej. KIT_4CAM"
+                    value={savePresetForm.code}
+                    onChange={(e) =>
+                      setSavePresetForm({
+                        ...savePresetForm,
+                        code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white uppercase font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Categoría
+                  </label>
+                  <select
+                    value={savePresetForm.category}
+                    onChange={(e) =>
+                      setSavePresetForm({ ...savePresetForm, category: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white font-medium"
+                  >
+                    <option value="CÁMARAS">CÁMARAS</option>
+                    <option value="STARLINK">STARLINK</option>
+                    <option value="REDES">REDES</option>
+                    <option value="ENERGIA_SOLAR">ENERGIA_SOLAR</option>
+                    <option value="GENERAL">GENERAL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Descripción (Opcional)
+                </label>
+                <textarea
+                  rows="2"
+                  placeholder="Detalles sobre el uso recomendado de esta plantilla..."
+                  value={savePresetForm.description}
+                  onChange={(e) =>
+                    setSavePresetForm({ ...savePresetForm, description: e.target.value })
+                  }
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsSaveModalOpen(false)}
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPreset}
+                  className="px-5 py-2 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSavingPreset ? 'Guardando...' : 'Guardar Plantilla'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
