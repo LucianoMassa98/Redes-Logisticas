@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Boxes,
   Trash2,
+  ShoppingCart,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventory.service.js';
 import { getApiErrorMessage } from '../../services/api.js';
@@ -26,6 +27,23 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner.jsx';
 
 const formatCurrency = (val) => {
   return `$ ${Number(val || 0).toLocaleString('es-AR')}`;
+};
+
+const getMarkupBadgeStyle = (percent) => {
+  const val = Number(percent || 0);
+  if (val <= 0) return 'bg-slate-100 text-slate-700 border-slate-300';
+  if (val <= 10) return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (val <= 20) return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+  if (val <= 30) return 'bg-teal-50 text-teal-700 border-teal-200';
+  if (val <= 40) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (val <= 50) return 'bg-green-50 text-green-700 border-green-200';
+  if (val <= 60) return 'bg-lime-50 text-lime-800 border-lime-300';
+  if (val <= 70) return 'bg-amber-50 text-amber-800 border-amber-300';
+  if (val <= 80) return 'bg-orange-50 text-orange-800 border-orange-300';
+  if (val <= 90) return 'bg-rose-50 text-rose-700 border-rose-200';
+  if (val <= 100) return 'bg-purple-50 text-purple-700 border-purple-300 font-bold';
+  if (val <= 150) return 'bg-indigo-50 text-indigo-700 border-indigo-300 font-bold';
+  return 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-300 font-black';
 };
 
 export const InventoryPage = () => {
@@ -308,7 +326,7 @@ export const InventoryPage = () => {
 
       {/* Metrics Cards */}
       {metrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Artículos</p>
@@ -333,11 +351,26 @@ export const InventoryPage = () => {
 
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Costo Stock Mínimo</p>
+              <p className="text-2xl font-black text-rose-600 mt-1">
+                {formatCurrency(metrics.totalReplenishCost ?? metrics.totalMinStockCost)}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5" title="Dinero necesario para alcanzar el mínimo de stock de todos los artículos">
+                Para cubrir faltantes ({metrics.totalReplenishUnits || 0} u.)
+              </p>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Valor al Costo</p>
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {formatCurrency(metrics.totalCostValue ?? metrics.totalInventoryCostValue)}
               </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Capital invertido en stock</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Capital hoy en stock</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <DollarSign className="w-5 h-5" />
@@ -446,14 +479,14 @@ export const InventoryPage = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Código / SKU</th>
-                  <th className="py-3 px-4">Artículo & Detalle</th>
-                  <th className="py-3 px-4">Categoría</th>
-                  <th className="py-3 px-4 text-center">Stock / Mínimo</th>
-                  <th className="py-3 px-4 text-right">Precio Costo</th>
-                  <th className="py-3 px-4 text-center">Margen</th>
-                  <th className="py-3 px-4 text-right">Precio Venta (Calc)</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
+                  <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">Código / SKU</th>
+                  <th className="py-3 px-4 min-w-[200px]">Artículo & Detalle</th>
+                  <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">Categoría</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap min-w-[150px]">Stock / Mínimo</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[170px] w-48">Precio Costo</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap min-w-[120px] w-32">Margen</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[170px] w-48">Precio Venta (Calc)</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap min-w-[110px]">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -467,7 +500,7 @@ export const InventoryPage = () => {
                       className="hover:bg-slate-50/70 transition-colors group"
                     >
                       {/* Código */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                         {item.code}
                       </td>
 
@@ -485,14 +518,14 @@ export const InventoryPage = () => {
                       </td>
 
                       {/* Categoría */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                           {item.category}
                         </span>
                       </td>
 
                       {/* Stock y alerta */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 font-bold">
                           <span
                             className={`px-2 py-0.5 rounded-md text-xs ${
@@ -507,48 +540,60 @@ export const InventoryPage = () => {
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
-                          Min: {item.minStockAlert}
+                          Mínimo: {item.minStockAlert} {item.unit}
                         </div>
+                        {item.stockQuantity < item.minStockAlert && (
+                          <div
+                            className="text-[10px] font-semibold text-rose-600 mt-0.5 whitespace-nowrap"
+                            title="Capital necesario para alcanzar el stock mínimo requerido de este artículo"
+                          >
+                            Faltan {item.minStockAlert - item.stockQuantity} ({formatCurrency((item.minStockAlert - item.stockQuantity) * item.costPrice)})
+                          </div>
+                        )}
                       </td>
 
                       {/* Costo */}
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="font-semibold text-slate-800">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">
+                        <div className="font-semibold text-slate-800 text-sm whitespace-nowrap">
                           {formatCurrency(item.costPrice)}
                         </div>
                         <div
-                          className="text-[10px] text-slate-400 mt-0.5"
-                          title="Capital invertido en este artículo (Costo x Stock)"
+                          className="text-[10px] text-slate-400 mt-0.5 whitespace-nowrap"
+                          title="Capital invertido en este artículo (Costo x Stock actual)"
                         >
-                          Total: {formatCurrency(Number(item.costPrice || 0) * Number(item.stockQuantity || 0))}
+                          Total stock: {formatCurrency(Number(item.costPrice || 0) * Number(item.stockQuantity || 0))}
                         </div>
                       </td>
 
                       {/* Margen */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap min-w-[120px]">
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            item.markupPercent !== null
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors whitespace-nowrap ${getMarkupBadgeStyle(item.effectiveMarkupPercent)}`}
                           title={
                             item.markupPercent !== null
-                              ? 'Margen específico asignado'
-                              : 'Margen general del sistema (.env)'
+                              ? `Margen específico asignado: +${item.effectiveMarkupPercent}%`
+                              : `Margen general del sistema (.env): +${item.effectiveMarkupPercent}%`
                           }
                         >
                           +{item.effectiveMarkupPercent}%
                         </span>
+                        {item.markupPercent !== null && (
+                          <div className="text-[9px] text-slate-400 mt-0.5 uppercase tracking-tighter">
+                            Específico
+                          </div>
+                        )}
                       </td>
 
                       {/* Precio de Venta Calculado (Costo + 100%) */}
-                      <td className="py-3.5 px-4 text-right font-black text-emerald-600 text-sm">
-                        {formatCurrency(item.calculatedSalePrice)}
+                      <td className="py-3.5 px-4 text-right font-black text-emerald-600 text-sm whitespace-nowrap min-w-[170px]">
+                        <span className="whitespace-nowrap">{formatCurrency(item.calculatedSalePrice)}</span>
+                        <div className="text-[10px] text-emerald-700/70 font-medium whitespace-nowrap mt-0.5">
+                          Venta unitaria
+                        </div>
                       </td>
 
                       {/* Acciones */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => handleOpenStockAdjust(item)}
@@ -579,22 +624,39 @@ export const InventoryPage = () => {
               </tbody>
               <tfoot className="bg-slate-50 border-t border-slate-200 text-xs font-bold text-slate-700">
                 <tr>
-                  <td colSpan="3" className="py-3 px-4 text-slate-500 uppercase tracking-wider text-[11px]">
+                  <td colSpan="3" className="py-3 px-4 text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
                     Totales (en pantalla)
                   </td>
-                  <td className="py-3 px-4 text-center text-slate-900">
+                  <td className="py-3 px-4 text-center whitespace-nowrap">
                     <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-xs">
                       {items.reduce((acc, curr) => acc + Number(curr.stockQuantity || 0), 0)} unidades
                     </span>
+                    {items.some((i) => i.stockQuantity < i.minStockAlert) && (
+                      <div className="text-[10px] text-rose-600 font-semibold mt-0.5">
+                        Faltan: {items.reduce((acc, curr) => acc + Math.max(0, Number(curr.minStockAlert || 0) - Number(curr.stockQuantity || 0)), 0)} u.
+                      </div>
+                    )}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-900">
-                    <span className="text-[10px] text-slate-400 block font-normal">Valor al Costo:</span>
-                    <span className="text-emerald-700 font-black">
+                  <td className="py-3 px-4 text-right whitespace-nowrap min-w-[170px]">
+                    <span className="text-[10px] text-slate-400 block font-normal">Valor al Costo actual:</span>
+                    <span className="text-slate-900 font-black">
                       {formatCurrency(items.reduce((acc, curr) => acc + (Number(curr.costPrice || 0) * Number(curr.stockQuantity || 0)), 0))}
                     </span>
                   </td>
-                  <td colSpan="3" className="py-3 px-4 text-right text-[11px] text-slate-400 font-normal">
-                    {items.length} artículos listados
+                  <td className="py-3 px-4 text-center whitespace-nowrap min-w-[120px]">
+                    <span className="text-[10px] text-slate-400 block font-normal">Costo reposición mín:</span>
+                    <span className="text-rose-700 font-black">
+                      {formatCurrency(items.reduce((acc, curr) => acc + (Math.max(0, Number(curr.minStockAlert || 0) - Number(curr.stockQuantity || 0)) * Number(curr.costPrice || 0)), 0))}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right whitespace-nowrap min-w-[170px]">
+                    <span className="text-[10px] text-slate-400 block font-normal">Venta total stock:</span>
+                    <span className="text-emerald-700 font-black">
+                      {formatCurrency(items.reduce((acc, curr) => acc + (Number(curr.calculatedSalePrice || 0) * Number(curr.stockQuantity || 0)), 0))}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center text-[11px] text-slate-400 font-normal whitespace-nowrap">
+                    {items.length} artículos
                   </td>
                 </tr>
               </tfoot>
