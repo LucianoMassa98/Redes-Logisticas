@@ -190,6 +190,7 @@ export const InventoryPage = () => {
         name: formData.name.trim(),
         category: formData.category.trim(),
         costPrice: Number(formData.costPrice),
+        stockQuantity: Number(formData.stockQuantity) >= 0 ? Number(formData.stockQuantity) : 0,
         minStockAlert: Number(formData.minStockAlert) || 0,
         unit: formData.unit.trim().toUpperCase(),
         markupPercent: formData.markupPercent !== '' ? Number(formData.markupPercent) : null,
@@ -833,6 +834,19 @@ export const InventoryPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Stock Actual ({formData.unit || 'Unidades'})
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.stockQuantity}
+                    onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white font-bold text-slate-900"
+                  />
+                </div>
+                <div>
                   <label className="block font-bold text-slate-700 mb-1">Alerta Stock Mínimo</label>
                   <input
                     type="number"
@@ -842,17 +856,18 @@ export const InventoryPage = () => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white"
                   />
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Margen % Personalizado</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder={`Vacío = estándar ${systemMarkup}%`}
-                    value={formData.markupPercent}
-                    onChange={(e) => setFormData({ ...formData, markupPercent: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white"
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Margen % Personalizado</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder={`Vacío = estándar ${systemMarkup}%`}
+                  value={formData.markupPercent}
+                  onChange={(e) => setFormData({ ...formData, markupPercent: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white"
+                />
               </div>
 
               {/* Vista previa de precio calculado */}
