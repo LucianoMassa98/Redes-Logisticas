@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Settings,
   BookmarkPlus,
+  Calendar,
   X,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventory.service.js';
@@ -715,6 +716,17 @@ _Presupuesto válido por 15 días. Factura y garantía oficial._
                   </>
                 )}
               </button>
+
+              {/* Botón Agendar Instalación directamente */}
+              {calculationResult && selectedItems.length > 0 && (
+                <Link
+                  to={`/admin/calendar?new=1&price=${calculationResult.summary.totalFinalSalePrice}&title=${encodeURIComponent(clientName ? `Instalación - ${clientName}` : 'Instalación Cotizada')}&name=${encodeURIComponent(clientName || '')}`}
+                  className="w-full py-2.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-700 hover:to-cyan-600 text-white shadow-md transition-all mt-2.5"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Agendar Instalación con este Presupuesto</span>
+                </Link>
+              )}
             </div>
           </div>
 

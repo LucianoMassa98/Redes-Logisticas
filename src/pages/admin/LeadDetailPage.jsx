@@ -261,21 +261,29 @@ export const LeadDetailPage = () => {
 
         {/* Quick Communication CTAs */}
         <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <Link
+            to={`/admin/calendar?new=1&leadId=${lead.id}&name=${encodeURIComponent(lead.fullName)}&phone=${encodeURIComponent(lead.phone)}&address=${encodeURIComponent(lead.address)}&locality=${encodeURIComponent(lead.locality || '')}&service=${encodeURIComponent(lead.services?.[0]?.code || 'STARLINK')}`}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-700 hover:to-cyan-600 shadow-md shadow-cyan-500/20 transition-all"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Agendar Instalación</span>
+          </Link>
+
           <a
             href={`https://wa.me/${cleanDigits}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => handleRegisterContact('CONTACT_MADE', 'Contacto iniciado vía WhatsApp')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition-all"
           >
             <MessageSquare className="w-4 h-4 fill-white" />
-            <span>Abrir WhatsApp</span>
+            <span>WhatsApp</span>
           </a>
 
           <a
             href={`tel:${lead.phone}`}
             onClick={() => handleRegisterContact('CONTACT_MADE', 'Llamada telefónica realizada')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
           >
             <Phone className="w-4 h-4 text-slate-600" />
             <span>Llamar</span>

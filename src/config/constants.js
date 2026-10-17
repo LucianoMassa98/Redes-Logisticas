@@ -157,3 +157,50 @@ export const PREFERRED_CONTACT_OPTIONS = [
   { value: 'LLAMADA', label: 'Llamada Telefónica' },
   { value: 'EMAIL', label: 'Correo Electrónico' },
 ];
+
+export const INSTALLATION_STATUS_CONFIG = {
+  PENDING: {
+    label: 'Pendiente',
+    badge: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300',
+    dot: 'bg-amber-500',
+    chip: 'bg-amber-50 text-amber-700 border-l-4 border-amber-500 hover:bg-amber-100',
+  },
+  CONFIRMED: {
+    label: 'Confirmada',
+    badge: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300',
+    dot: 'bg-blue-500',
+    chip: 'bg-blue-50 text-blue-800 border-l-4 border-blue-500 hover:bg-blue-100',
+  },
+  IN_PROGRESS: {
+    label: 'En Curso',
+    badge: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300',
+    dot: 'bg-purple-500',
+    chip: 'bg-purple-50 text-purple-800 border-l-4 border-purple-500 hover:bg-purple-100',
+  },
+  COMPLETED: {
+    label: 'Completada',
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300',
+    dot: 'bg-emerald-500',
+    chip: 'bg-emerald-50 text-emerald-800 border-l-4 border-emerald-500 hover:bg-emerald-100',
+  },
+  RESCHEDULED: {
+    label: 'Reprogramada',
+    badge: 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/40 dark:text-sky-300',
+    dot: 'bg-sky-500',
+    chip: 'bg-sky-50 text-sky-800 border-l-4 border-sky-500 hover:bg-sky-100',
+  },
+  CANCELLED: {
+    label: 'Cancelada',
+    badge: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300',
+    dot: 'bg-rose-500',
+    chip: 'bg-rose-50 text-rose-800 border-l-4 border-rose-400 opacity-60 line-through hover:opacity-100',
+  },
+};
+
+export const INSTALLATION_PRIORITY_CONFIG = {
+  LOW: { label: 'Baja', color: 'text-slate-500 bg-slate-100' },
+  NORMAL: { label: 'Normal', color: 'text-blue-600 bg-blue-50' },
+  HIGH: { label: 'Alta', color: 'text-orange-600 bg-orange-50 font-semibold' },
+  URGENT: { label: 'Urgente', color: 'text-rose-700 bg-rose-50 font-bold animate-pulse' },
+};
+
